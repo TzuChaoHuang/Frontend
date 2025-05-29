@@ -213,19 +213,7 @@ const App: React.FC = () => {
               <Text style={{ color: "#a6a6a6" }}>
                 © {new Date().getFullYear()} EZURL. All rights reserved.
               </Text>
-              <Button
-                type="link"
-                icon={<CalendarOutlined />}
-                onClick={toggleDate}
-                style={{
-                  color: "#a6a6a6",
-                  display: "flex",
-                  alignItems: "center",
-                  padding: "4px 8px",
-                }}
-              >
-                今日日期
-              </Button>
+              
             </Space>
             {dateVisible && (
               <Text style={{ color: "#52c41a", fontSize: "16px" }}>
