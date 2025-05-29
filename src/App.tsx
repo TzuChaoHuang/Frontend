@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Home from "./view/Home";
 import Privacy from "./view/Privacy";
+import FAQ from "./view/FAQ";
 import {
   Layout,
   ConfigProvider,
@@ -52,6 +53,10 @@ const App: React.FC = () => {
       key: "privacy",
       label: "隱私權政策",
     },
+    {
+      key: "faq",
+      label: "使用說明與問答",
+    },
   ];
 
   // 渲染當前頁面內容
@@ -63,6 +68,8 @@ const App: React.FC = () => {
         return <Home currentPage={currentPage} />;
       case "privacy":
         return <Privacy />;
+      case "faq":
+        return <FAQ />;
       default:
         return <Home currentPage="page1" />;
     }
@@ -213,7 +220,6 @@ const App: React.FC = () => {
               <Text style={{ color: "#a6a6a6" }}>
                 © {new Date().getFullYear()} EZURL. All rights reserved.
               </Text>
-              
             </Space>
             {dateVisible && (
               <Text style={{ color: "#52c41a", fontSize: "16px" }}>
@@ -225,6 +231,12 @@ const App: React.FC = () => {
               onClick={() => setCurrentPage("privacy")}
             >
               隱私權政策
+            </Text>
+            <Text
+              style={{ color: "#a6a6a6", cursor: "pointer" }}
+              onClick={() => setCurrentPage("faq")}
+            >
+              使用說明與問答
             </Text>
           </Space>
         </Footer>
