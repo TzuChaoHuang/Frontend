@@ -1,40 +1,40 @@
-
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { 
-    Upload, 
-    Button, 
-    Card, 
-    Alert, 
-    Typography, 
-    Space, 
-    Image, 
-    Progress 
+import {
+    Upload,
+    Button,
+    Card,
+    Alert,
+    Typography,
+    Space,
+    Image,
+    Progress
 } from 'antd';
-import { 
-    UploadOutlined, 
-    DeleteOutlined, 
-    FileImageOutlined, 
-    VideoCameraOutlined, 
+import {
+    UploadOutlined,
+    DeleteOutlined,
+    FileImageOutlined,
+    VideoCameraOutlined,
     FileOutlined,
-    InboxOutlined 
+    InboxOutlined
 } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
+import { UploadFiles } from '@/apis/File';
 
 const { Text, Paragraph } = Typography;
 const { Dragger } = Upload;
 
-// 定义允许的文件类型
+// Define allowed file types
 type FileType = 'image' | 'video' | 'all';
 
-// 文件上传组件属性
+// File uploader component properties
 interface FileUploaderProps {
-    maxFileSize?: number; // 最大文件大小，单位MB
-    acceptedFileTypes?: FileType; // 允许的文件类型
-    onFilesSelected?: (files: File[]) => void; // 文件选择回调
-    maxFiles?: number; // 最大文件数量
+    maxFileSize?: number; // Maximum file size in MB
+    acceptedFileTypes?: FileType; // Allowed file types
+    onFilesSelected?: (files: File[]) => void; // File selection callback
+    maxFiles?: number; // Maximum number of files
 }
 
-// 获取文件类型的MIME类型
+// Get MIME types for file type
 const getMimeTypes = (fileType: FileType): string => {
     switch (fileType) {
         case 'image':
@@ -47,17 +47,17 @@ const getMimeTypes = (fileType: FileType): string => {
     }
 };
 
-// 检查文件是否为图片
+// Check if file is an image
 const isImageFile = (file: File): boolean => {
     return file.type.startsWith('image/');
 };
 
-// 检查文件是否为视频
+// Check if file is a video
 const isVideoFile = (file: File): boolean => {
     return file.type.startsWith('video/');
 };
 
-// 格式化文件大小
+// Format file size
 const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
 
@@ -68,9 +68,9 @@ const formatFileSize = (bytes: number): string => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
-// 文件上传组件
+// File uploader component
 const FileUploader: React.FC<FileUploaderProps> = ({
-    maxFileSize = 70, // 默认70MB
+    maxFileSize = 70, // Default 70MB
     acceptedFileTypes = 'all',
     onFilesSelected,
     maxFiles = 5
@@ -80,50 +80,50 @@ const FileUploader: React.FC<FileUploaderProps> = ({
     const [error, setError] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    // 处理文件验证和添加
+    // Handle file validation and addition
     const handleFileValidationAndAdd = useCallback((newFiles: FileList | null) => {
         if (!newFiles || newFiles.length === 0) return;
 
         setError(null);
 
-        // 检查是否超过最大文件数
+        // Check if exceeding maximum file count
         if (files.length + newFiles.length > maxFiles) {
-            setError(`最多只能上傳${maxFiles}個文件`);
+            setError(`Maximum ${maxFiles} files allowed`);
             return;
         }
 
         const validFiles: File[] = [];
         const validPreviews: string[] = [];
-        const maxSizeBytes = maxFileSize * 1024 * 1024; // 转换为字节
+        const maxSizeBytes = maxFileSize * 1024 * 1024; // Convert to bytes
 
-        // 验证每个文件
+        // Validate each file
         Array.from(newFiles).forEach(file => {
-            // 检查文件大小
+            // Check file size
             if (file.size > maxSizeBytes) {
-                setError(`檔案 ${file.name} 超過最大限制 ${maxFileSize}MB`);
+                setError(`File ${file.name} exceeds maximum size of ${maxFileSize}MB`);
                 return;
             }
 
-            // 检查文件类型
+            // Check file type
             if (acceptedFileTypes === 'image' && !isImageFile(file)) {
-                setError(`檔案 ${file.name} 不是圖片格式`);
+                setError(`File ${file.name} is not an image`);
                 return;
             }
 
             if (acceptedFileTypes === 'video' && !isVideoFile(file)) {
-                setError(`檔案 ${file.name} 不是影片格式`);
+                setError(`File ${file.name} is not a video`);
                 return;
             }
 
             if (acceptedFileTypes === 'all' && !isImageFile(file) && !isVideoFile(file)) {
-                setError(`檔案 ${file.name} 不是圖片或影片格式`);
+                setError(`File ${file.name} is not an image or video`);
                 return;
             }
 
-            // 新增檔案
+            // Add file
             validFiles.push(file);
 
-            // 創建預覽URL
+            // Create preview URL
             const previewUrl = URL.createObjectURL(file);
             validPreviews.push(previewUrl);
         });
@@ -134,8 +134,9 @@ const FileUploader: React.FC<FileUploaderProps> = ({
 
             setFiles(newFilesArray);
             setPreviews(newPreviewsArray);
-
-            // CallBack Function
+            debugger;
+            uploadToServer(newFilesArray);
+            // Callback Function
             if (onFilesSelected) {
                 onFilesSelected(newFilesArray);
             }
@@ -143,34 +144,34 @@ const FileUploader: React.FC<FileUploaderProps> = ({
     }, [files, previews, maxFileSize, maxFiles, acceptedFileTypes, onFilesSelected]);
 
     useEffect(() => {
-        // 清理旧的预览URL
+        // Clean up old preview URLs
         previews.forEach(url => URL.revokeObjectURL(url));
-        
+
         setFiles([]);
         setPreviews([]);
         setError(null);
 
-        // 回調函數
+        // Callback function
         if (onFilesSelected) {
             onFilesSelected([]);
         }
     }, [acceptedFileTypes]);
 
-    // 處理文件選擇
+    // Handle file selection
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         handleFileValidationAndAdd(e.target.files);
-        // 重置可以重複上傳
+        // Reset for repeated uploads
         if (inputRef.current) {
             inputRef.current.value = '';
         }
     };
 
-    // 處理文件刪除
+    // Handle file deletion
     const handleFileRemove = (index: number) => {
-        // 釋放預覽
+        // Release preview
         URL.revokeObjectURL(previews[index]);
 
-        // 移除文件和預覽
+        // Remove file and preview
         const newFiles = [...files];
         const newPreviews = [...previews];
 
@@ -180,13 +181,13 @@ const FileUploader: React.FC<FileUploaderProps> = ({
         setFiles(newFiles);
         setPreviews(newPreviews);
 
-        // 回調函數
+        // Callback function
         if (onFilesSelected) {
             onFilesSelected(newFiles);
         }
     };
 
-    // 文件ICON
+    // File icon
     const getFileIcon = (file: File) => {
         if (isImageFile(file)) {
             return <FileImageOutlined style={{ fontSize: '24px' }} />;
@@ -196,28 +197,50 @@ const FileUploader: React.FC<FileUploaderProps> = ({
         return <FileOutlined style={{ fontSize: '24px' }} />;
     };
 
-    // 預覽
+    const uploadToServer = async (datas: File[]) => {
+        try {
+            console.log('Uploading files:', datas.map(f => ({ name: f.name, size: f.size, type: f.type })));
+            const response = await UploadFiles(datas);
+            console.log('Upload response status:', response.status);
+            const data = await response.json();
+            console.log('Upload response data:', data);
+            
+            if (data.success) {
+                // Upload successful
+                console.log('Files uploaded successfully:', data);
+                setError(null);
+            } else {
+                // Upload failed
+                setError(data.message || 'Upload failed');
+            }
+        } catch (err) {
+            console.error('Upload error:', err);
+            setError(err instanceof Error ? err.message : 'An error occurred during upload');
+        }
+    }
+
+    // Preview
     const renderPreview = (file: File, previewUrl: string, index: number) => {
         return (
-            <Card 
-                key={index} 
-                size="small" 
+            <Card
+                key={index}
+                size="small"
                 style={{ marginBottom: 8 }}
                 actions={[
-                    <Button 
-                        type="text" 
-                        danger 
-                        icon={<DeleteOutlined />} 
+                    <Button
+                        type="text"
+                        danger
+                        icon={<DeleteOutlined />}
                         onClick={() => handleFileRemove(index)}
                     />
                 ]}
             >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ 
-                        width: 48, 
-                        height: 48, 
-                        display: 'flex', 
-                        alignItems: 'center', 
+                    <div style={{
+                        width: 48,
+                        height: 48,
+                        display: 'flex',
+                        alignItems: 'center',
                         justifyContent: 'center',
                         backgroundColor: '#f5f5f5',
                         borderRadius: 6
@@ -242,10 +265,10 @@ const FileUploader: React.FC<FileUploaderProps> = ({
                             getFileIcon(file)
                         )}
                     </div>
-                    
+
                     <div style={{ flex: 1, minWidth: 0 }}>
-                        <Paragraph 
-                            ellipsis={{ tooltip: file.name }} 
+                        <Paragraph
+                            ellipsis={{ tooltip: file.name }}
                             style={{ marginBottom: 4, fontSize: '14px', fontWeight: 500 }}
                         >
                             {file.name}
@@ -262,12 +285,12 @@ const FileUploader: React.FC<FileUploaderProps> = ({
     const getFileTypeText = () => {
         switch (acceptedFileTypes) {
             case 'image':
-                return '圖片';
+                return 'Images';
             case 'video':
-                return '影片';
+                return 'Videos';
             case 'all':
             default:
-                return '圖片和影片';
+                return 'Images and Videos';
         }
     };
 
@@ -277,11 +300,11 @@ const FileUploader: React.FC<FileUploaderProps> = ({
         multiple: true,
         accept: getMimeTypes(acceptedFileTypes),
         beforeUpload: (file, fileList) => {
-            // 使用我们自定义的验证逻辑
+            // Use our custom validation logic
             const dt = new DataTransfer();
             fileList.forEach(f => dt.items.add(f));
             handleFileValidationAndAdd(dt.files);
-            return false; // 阻止默认上传行为
+            return false; // Prevent default upload behavior
         },
         showUploadList: false,
         disabled: files.length >= maxFiles
@@ -290,7 +313,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({
     return (
         <div style={{ width: '100%' }}>
             <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-                {/* 錯誤提示 */}
+                {/* Error message */}
                 {error && (
                     <Alert
                         message={error}
@@ -301,28 +324,28 @@ const FileUploader: React.FC<FileUploaderProps> = ({
                     />
                 )}
 
-                {/* 上傳區域 */}
+                {/* Upload area */}
                 {files.length < maxFiles && (
                     <Dragger {...uploadProps} style={{ padding: '20px' }}>
                         <p className="ant-upload-drag-icon">
                             <InboxOutlined style={{ fontSize: '48px', color: '#d9d9d9' }} />
                         </p>
                         <p className="ant-upload-text" style={{ fontSize: '16px', fontWeight: 500 }}>
-                            拖拽或點擊上傳{getFileTypeText()}
+                            Drag and drop or click to upload {getFileTypeText()}
                         </p>
                         <p className="ant-upload-hint" style={{ color: '#999' }}>
-                            每個文件大小不超過 <span style={{ color: '#faad14' }}>{maxFileSize}MB</span>
+                            Each file size should not exceed <span style={{ color: '#faad14' }}>{maxFileSize}MB</span>
                         </p>
                         <p className="ant-upload-hint" style={{ color: '#999' }}>
-                            還有 <span style={{ color: '#ff4d4f' }}>{maxFiles - files.length}</span> 個文件
+                            <span style={{ color: '#ff4d4f' }}>{maxFiles - files.length}</span> files remaining
                         </p>
-                        
+
                         <div style={{ marginTop: 16 }}>
                             <Button type="default" icon={<UploadOutlined />}>
-                                選擇文件
+                                Select Files
                             </Button>
                         </div>
-                        
+
                         <input
                             type="file"
                             ref={inputRef}
@@ -334,10 +357,10 @@ const FileUploader: React.FC<FileUploaderProps> = ({
                     </Dragger>
                 )}
 
-                {/* 預覽 */}
+                {/* Preview */}
                 {files.length > 0 && (
                     <div>
-                        <Text strong>{files.length} 個文件已選擇</Text>
+                        <Text strong>{files.length} files selected</Text>
                         <div style={{ marginTop: 12 }}>
                             {files.map((file, index) => (
                                 renderPreview(file, previews[index], index)
