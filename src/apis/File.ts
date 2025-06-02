@@ -1,10 +1,6 @@
-export const UploadFiles = async (files: File[]) => {
+export const UploadFiles = async (file: File) => {
     const formData = new FormData();
-    debugger;
-    // Ensure each file is correctly added to FormData
-    files.forEach((file) => {
-        formData.append('files', file);
-    });
+    formData.append('file', file);
 
     try {
         const response = await fetch('/api/File/Upload', {

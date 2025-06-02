@@ -11,27 +11,20 @@ import {
   Col,
 } from "antd";
 import { CalendarOutlined } from "@ant-design/icons";
-import FileUploader from "@/components/Upload";
+import FileUploader, { type FileContext } from "@/components/Upload";
+import type { FormRequest } from "@/apis/Form";
 
 const { TextArea } = Input;
 const { Text } = Typography;
-
-interface IFormData {
-  url?: string;
-  IsPassword?: boolean;
-  Password?: string;
-  Description?: string;
-  Expire?: number;
-}
 
 interface HomeProps {
   currentPage: string;
 }
 
 const Home: React.FC<HomeProps> = ({ currentPage }) => {
-  const [form] = Form.useForm();
-  const [passwordEnabled, setPasswordEnabled] = useState(false);
+  const [form] = Form.useForm<FormRequest>();
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const isPassword = Form.useWatch('isPassword', form);
 
   // 監聽視窗大小變化
   useEffect(() => {
@@ -43,16 +36,15 @@ const Home: React.FC<HomeProps> = ({ currentPage }) => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // 處理密碼開關變更
-  const handlePasswordSwitch = (checked: boolean) => {
-    setPasswordEnabled(checked);
-    if (!checked) {
-      form.setFieldValue("password", ""); // 清除密碼輸入框的內容
+  // 當 isPassword 變化時，如果設為 false，清除密碼
+  useEffect(() => {
+    if (!isPassword) {
+      form.setFieldValue('password', '');
     }
-  };
+  }, [isPassword, form]);
 
   // 處理文件選擇
-  const handleFilesSelected = (files: File[]) => {
+  const handleFilesSelected = (files: FileContext[]) => {
     console.log("選擇的文件:", files);
     // 這裡可以處理文件上傳邏輯
   };
@@ -117,76 +109,78 @@ const Home: React.FC<HomeProps> = ({ currentPage }) => {
           <Space direction="vertical" size="large" style={{ width: "100%" }}>
             <Row gutter={isMobile ? [0, 16] : 16}>
               <Col span={isMobile ? 24 : 12}>
-  <Form.Item
-    label={
-      <>
-        <span style={{ color: "#ffffff" }}>密碼：</span>{" "}
-        <Switch
-          checked={passwordEnabled}
-          onChange={handlePasswordSwitch}
-          style={{
-            backgroundColor: passwordEnabled ? "#52c41a" : "#434343",
-          }}
-        />
-        <Text style={{ color: "#a6a6a6" }}>
-          {passwordEnabled ? "已啟用保護" : "未啟用保護"}
-        </Text>
-      </>
-    }
-    style={{ marginBottom: isMobile ? 16 : 0 }}
-  >
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        <Form.Item
-          name="password"
-          noStyle
-        >
-          <Input
-            value={form.getFieldValue("password") || ""}
-            onChange={(e) => form.setFieldValue("password", e.target.value)}
-            placeholder="請輸入密碼"
-            disabled={!passwordEnabled}
-            style={{
-              backgroundColor: "#262626",
-              borderColor: "#434343",
-              color: "#ffffff",
-            }}
-          />
-        </Form.Item>
-        <Button
-          type="default"
-          icon={<CalendarOutlined />}
-          onClick={generateTodayDate}
-          disabled={!passwordEnabled}
-          style={{
-            backgroundColor: passwordEnabled ? "#52c41a" : "#434343",
-            borderColor: passwordEnabled ? "#52c41a" : "#434343",
-            color: "#ffffff",
-          }}
-        >
-          今日日期
-        </Button>
-      </div>
-    </div>
-  </Form.Item>
-</Col>
+                <Form.Item
+                  label={
+                    <>
+                      <span style={{ color: "#ffffff" }}>密碼：</span>{" "}
+                      <Form.Item
+                        name="isPassword"
+                        valuePropName="checked"
+                        noStyle
+                      >
+                        <Switch
+                          style={{
+                            backgroundColor: isPassword ? "#52c41a" : "#434343",
+                          }}
+                        />
+                      </Form.Item>
+                      <Text style={{ color: "#a6a6a6" }}>
+                        {isPassword ? "已啟用保護" : "未啟用保護"}
+                      </Text>
+                    </>
+                  }
+                  style={{ marginBottom: isMobile ? 16 : 0 }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 8,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                      }}
+                    >
+                      <Form.Item
+                        name="password"
+                        noStyle
+                      >
+                        <Input
+                          placeholder="請輸入密碼"
+                          disabled={!isPassword}
+                          style={{
+                            backgroundColor: "#262626",
+                            borderColor: "#434343",
+                            color: "#ffffff",
+                          }}
+                        />
+                      </Form.Item>
+                      <Button
+                        type="default"
+                        icon={<CalendarOutlined />}
+                        onClick={generateTodayDate}
+                        disabled={!isPassword}
+                        style={{
+                          backgroundColor: isPassword ? "#52c41a" : "#434343",
+                          borderColor: isPassword ? "#52c41a" : "#434343",
+                          color: "#ffffff",
+                        }}
+                      >
+                        今日日期
+                      </Button>
+                    </div>
+                  </div>
+                </Form.Item>
+              </Col>
 
               <Col span={isMobile ? 24 : 12}>
                 <Form.Item
                   label={<span style={{ color: "#ffffff" }}>有效日期：</span>}
-                  name="expire"
+                  name="expiredDays"
                   initialValue={30}
                   style={{ marginBottom: 0 }}
                 >
@@ -229,9 +223,8 @@ const Home: React.FC<HomeProps> = ({ currentPage }) => {
 
             <Form.Item
               label={
-                <span style={{ color: "#ffffff" }}>{`${
-                  currentPage === "page2" ? "圖片" : "影片"
-                }上傳：`}</span>
+                <span style={{ color: "#ffffff" }}>{`${currentPage === "page2" ? "圖片" : "影片"
+                  }上傳：`}</span>
               }
             >
               <FileUploader

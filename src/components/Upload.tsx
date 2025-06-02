@@ -26,11 +26,17 @@ const { Dragger } = Upload;
 // Define allowed file types
 type FileType = 'image' | 'video' | 'all';
 
+export interface FileContext {
+    file: File;
+    priview: string;
+    context?: string;
+}
+
 // File uploader component properties
 interface FileUploaderProps {
     maxFileSize?: number; // Maximum file size in MB
     acceptedFileTypes?: FileType; // Allowed file types
-    onFilesSelected?: (files: File[]) => void; // File selection callback
+    onFilesSelected?: (files: FileContext[]) => void; // File selection callback
     maxFiles?: number; // Maximum number of files
 }
 
@@ -75,13 +81,12 @@ const FileUploader: React.FC<FileUploaderProps> = ({
     onFilesSelected,
     maxFiles = 5
 }) => {
-    const [files, setFiles] = useState<File[]>([]);
-    const [previews, setPreviews] = useState<string[]>([]);
+    const [files, setFiles] = useState<FileContext[]>([]);
     const [error, setError] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
     // Handle file validation and addition
-    const handleFileValidationAndAdd = useCallback((newFiles: FileList | null) => {
+    const handleFileValidationAndAdd = useCallback(async (newFiles: FileList | null) => {
         if (!newFiles || newFiles.length === 0) return;
 
         setError(null);
@@ -92,63 +97,58 @@ const FileUploader: React.FC<FileUploaderProps> = ({
             return;
         }
 
-        const validFiles: File[] = [];
-        const validPreviews: string[] = [];
+        const validFiles: FileContext[] = [];
         const maxSizeBytes = maxFileSize * 1024 * 1024; // Convert to bytes
 
         // Validate each file
-        Array.from(newFiles).forEach(file => {
+        for (const file of Array.from(newFiles)) {
             // Check file size
             if (file.size > maxSizeBytes) {
                 setError(`File ${file.name} exceeds maximum size of ${maxFileSize}MB`);
-                return;
+                continue;
             }
 
             // Check file type
             if (acceptedFileTypes === 'image' && !isImageFile(file)) {
                 setError(`File ${file.name} is not an image`);
-                return;
+                continue;
             }
 
             if (acceptedFileTypes === 'video' && !isVideoFile(file)) {
                 setError(`File ${file.name} is not a video`);
-                return;
+                continue;
             }
 
             if (acceptedFileTypes === 'all' && !isImageFile(file) && !isVideoFile(file)) {
                 setError(`File ${file.name} is not an image or video`);
-                return;
+                continue;
             }
 
+            const context = await uploadToServer(file);
             // Add file
-            validFiles.push(file);
-
-            // Create preview URL
-            const previewUrl = URL.createObjectURL(file);
-            validPreviews.push(previewUrl);
-        });
+            validFiles.push({
+                file: file,
+                priview: URL.createObjectURL(file),
+                context: context
+            });
+        }
 
         if (validFiles.length > 0) {
             const newFilesArray = [...files, ...validFiles];
-            const newPreviewsArray = [...previews, ...validPreviews];
-
             setFiles(newFilesArray);
-            setPreviews(newPreviewsArray);
-            debugger;
-            uploadToServer(newFilesArray);
+
             // Callback Function
             if (onFilesSelected) {
                 onFilesSelected(newFilesArray);
             }
         }
-    }, [files, previews, maxFileSize, maxFiles, acceptedFileTypes, onFilesSelected]);
+    }, [files, maxFileSize, maxFiles, acceptedFileTypes, onFilesSelected]);
 
     useEffect(() => {
         // Clean up old preview URLs
-        previews.forEach(url => URL.revokeObjectURL(url));
+        files.forEach(file => URL.revokeObjectURL(file.priview));
 
         setFiles([]);
-        setPreviews([]);
         setError(null);
 
         // Callback function
@@ -169,17 +169,14 @@ const FileUploader: React.FC<FileUploaderProps> = ({
     // Handle file deletion
     const handleFileRemove = (index: number) => {
         // Release preview
-        URL.revokeObjectURL(previews[index]);
+        URL.revokeObjectURL(files[index].priview);
 
         // Remove file and preview
         const newFiles = [...files];
-        const newPreviews = [...previews];
 
         newFiles.splice(index, 1);
-        newPreviews.splice(index, 1);
 
         setFiles(newFiles);
-        setPreviews(newPreviews);
 
         // Callback function
         if (onFilesSelected) {
@@ -197,30 +194,26 @@ const FileUploader: React.FC<FileUploaderProps> = ({
         return <FileOutlined style={{ fontSize: '24px' }} />;
     };
 
-    const uploadToServer = async (datas: File[]) => {
+    const uploadToServer = async (file: File) => {
         try {
-            console.log('Uploading files:', datas.map(f => ({ name: f.name, size: f.size, type: f.type })));
-            const response = await UploadFiles(datas);
-            console.log('Upload response status:', response.status);
+            const response = await UploadFiles(file);
             const data = await response.json();
-            console.log('Upload response data:', data);
-            
             if (data.success) {
                 // Upload successful
                 console.log('Files uploaded successfully:', data);
-                setError(null);
             } else {
                 // Upload failed
-                setError(data.message || 'Upload failed');
+                setError('Upload failed');
             }
+            // return file name
+            return data.data; 
         } catch (err) {
-            console.error('Upload error:', err);
             setError(err instanceof Error ? err.message : 'An error occurred during upload');
         }
     }
 
     // Preview
-    const renderPreview = (file: File, previewUrl: string, index: number) => {
+    const renderPreview = (file: FileContext, index: number) => {
         return (
             <Card
                 key={index}
@@ -245,36 +238,36 @@ const FileUploader: React.FC<FileUploaderProps> = ({
                         backgroundColor: '#f5f5f5',
                         borderRadius: 6
                     }}>
-                        {isImageFile(file) ? (
+                        {isImageFile(file.file) ? (
                             <Image
-                                src={previewUrl}
-                                alt={file.name}
+                                src={file.priview}
+                                alt={file.file.name}
                                 width={48}
                                 height={48}
                                 style={{ objectFit: 'cover', borderRadius: 6 }}
-                                preview={{ src: previewUrl }}
+                                preview={{ src: file.priview }}
                             />
-                        ) : isVideoFile(file) ? (
+                        ) : isVideoFile(file.file) ? (
                             <video
-                                src={previewUrl}
+                                src={file.priview}
                                 style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6 }}
                                 controls={false}
                                 muted
                             />
                         ) : (
-                            getFileIcon(file)
+                            getFileIcon(file.file)
                         )}
                     </div>
 
                     <div style={{ flex: 1, minWidth: 0 }}>
                         <Paragraph
-                            ellipsis={{ tooltip: file.name }}
+                            ellipsis={{ tooltip: file.file.name }}
                             style={{ marginBottom: 4, fontSize: '14px', fontWeight: 500 }}
                         >
-                            {file.name}
+                            {file.file.name}
                         </Paragraph>
                         <Text type="secondary" style={{ fontSize: '12px' }}>
-                            {formatFileSize(file.size)}
+                            {formatFileSize(file.file.size)}
                         </Text>
                     </div>
                 </div>
@@ -363,7 +356,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({
                         <Text strong>{files.length} files selected</Text>
                         <div style={{ marginTop: 12 }}>
                             {files.map((file, index) => (
-                                renderPreview(file, previews[index], index)
+                                renderPreview(file, index)
                             ))}
                         </div>
                     </div>
