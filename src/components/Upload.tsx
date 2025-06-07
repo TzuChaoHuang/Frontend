@@ -197,16 +197,15 @@ const FileUploader: React.FC<FileUploaderProps> = ({
     const uploadToServer = async (file: File) => {
         try {
             const response = await UploadFiles(file);
-            const data = await response.json();
-            if (data.success) {
+            if (response.success) {
                 // Upload successful
-                console.log('Files uploaded successfully:', data);
+                console.log('Files uploaded successfully:', response);
             } else {
                 // Upload failed
                 setError('Upload failed');
             }
             // return file name
-            return data.data; 
+            return response.data; 
         } catch (err) {
             setError(err instanceof Error ? err.message : 'An error occurred during upload');
         }

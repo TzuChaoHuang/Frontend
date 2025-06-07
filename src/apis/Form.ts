@@ -21,7 +21,7 @@ export const CreateForm = async (data: FormRequest) => {
             throw new Error('Form creation failed');
         }
 
-        return response;
+        return await response.json();
     } catch (error) {
         console.error('Form creation error:', error);
         throw error;

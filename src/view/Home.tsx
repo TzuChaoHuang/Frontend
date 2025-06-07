@@ -9,10 +9,12 @@ import {
   Space,
   Row,
   Col,
+  Alert,
+  message,
 } from "antd";
-import { CalendarOutlined } from "@ant-design/icons";
+import { CalendarOutlined, CopyOutlined } from "@ant-design/icons";
 import FileUploader, { type FileContext } from "@/components/Upload";
-import type { FormRequest } from "@/apis/Form";
+import { CreateForm, type FormRequest } from "@/apis/Form";
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -25,8 +27,13 @@ const Home: React.FC<HomeProps> = ({ currentPage }) => {
   const [form] = Form.useForm<FormRequest>();
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const isPassword = Form.useWatch('isPassword', form);
+  const [newPath, setNewPath] = useState<string>("");
+  const [showAlert, setShowAlert] = useState(false);
+  
+  // Get current domain
+  const currentDomain = window.location.origin;
 
-  // 監聽視窗大小變化
+  // Listen for window size changes
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 768);
@@ -36,32 +43,61 @@ const Home: React.FC<HomeProps> = ({ currentPage }) => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // 當 isPassword 變化時，如果設為 false，清除密碼
+  // Clear password when isPassword is set to false
   useEffect(() => {
     if (!isPassword) {
       form.setFieldValue('password', '');
     }
   }, [isPassword, form]);
 
-  // 處理文件選擇
+  // Handle file selection
   const handleFilesSelected = (files: FileContext[]) => {
-    console.log("選擇的文件:", files);
-    // 這裡可以處理文件上傳邏輯
+    form.setFieldValue("fileNames", [...files.map(x => x.context)]);
+    // Handle file upload logic here
   };
 
-  // 處理表單提交
-  const onFinish = (values: any) => {
-    console.log("表單數據:", values);
-    // 處理表單提交邏輯
+  // Handle form submission
+  const onFinish = async (values: any) => {
+    console.log("Form data:", values);
+    // Handle form submission logic
+    try {
+      var response: any = await CreateForm(values);
+      setNewPath(response.id);
+      setShowAlert(true);  // Show Alert
+    } catch {
+
+    }
   };
 
-  // 生成今日日期
+  const handleSave = () => {
+    form
+      .validateFields()
+      .then(values => {
+        onFinish(values);
+      })
+      .catch(errorInfo => {
+        console.log('fail')
+      });
+  };
+
+  // Generate today's date
   const generateTodayDate = () => {
     const today = new Date();
     const month = (today.getMonth() + 1).toString().padStart(2, "0");
     const day = today.getDate().toString().padStart(2, "0");
     const dateString = month + day;
     form.setFieldsValue({ password: dateString });
+  };
+
+  // Copy link to clipboard
+  const copyToClipboard = async () => {
+    const fullUrl = `${currentDomain}/${newPath}`;
+    try {
+      await navigator.clipboard.writeText(fullUrl);
+      message.success('連結已複製到剪貼簿');
+    } catch (err) {
+      message.error('複製失敗，請手動複製');
+    }
   };
 
   return (
@@ -76,13 +112,40 @@ const Home: React.FC<HomeProps> = ({ currentPage }) => {
         padding: isMobile ? "16px" : "32px",
       }}
     >
+      {showAlert && (
+        <div style={{ marginBottom: 24 }}>
+          <Alert
+            message="生成的連結"
+            description={
+              <Space>
+                <span>{`${currentDomain}/${newPath}`}</span>
+                <Button
+                  type="primary"
+                  icon={<CopyOutlined />}
+                  onClick={copyToClipboard}
+                  size="small"
+                  style={{
+                    backgroundColor: "#52c41a",
+                    borderColor: "#52c41a",
+                  }}
+                >
+                </Button>
+              </Space>
+            }
+            type="success"
+            closable
+            onClose={() => setShowAlert(false)}
+          />
+        </div>
+      )}
+
       <Form
         form={form}
         layout="vertical"
-        onFinish={onFinish}
+        onFinish={handleSave}
         size={isMobile ? "middle" : "large"}
       >
-        {/* Page 1 Content - 縮網址 */}
+        {/* Page 1 Content - URL Shortener */}
         {currentPage === "page1" && (
           <Form.Item
             label={<span style={{ color: "#ffffff" }}>網址：</span>}
@@ -104,7 +167,7 @@ const Home: React.FC<HomeProps> = ({ currentPage }) => {
           </Form.Item>
         )}
 
-        {/* Page 2 & 3 Content - 縮圖片/影片 */}
+        {/* Page 2 & 3 Content - Image/Video Shortener */}
         {currentPage !== "page1" && (
           <Space direction="vertical" size="large" style={{ width: "100%" }}>
             <Row gutter={isMobile ? [0, 16] : 16}>
@@ -131,6 +194,7 @@ const Home: React.FC<HomeProps> = ({ currentPage }) => {
                   }
                   style={{ marginBottom: isMobile ? 16 : 0 }}
                 >
+                  {/* Password input and today's date button */}
                   <div
                     style={{
                       display: "flex",
@@ -222,10 +286,14 @@ const Home: React.FC<HomeProps> = ({ currentPage }) => {
             </Form.Item>
 
             <Form.Item
+              name="fileNames"
               label={
                 <span style={{ color: "#ffffff" }}>{`${currentPage === "page2" ? "圖片" : "影片"
                   }上傳：`}</span>
               }
+              rules={[{
+                required: true, message: '請選擇檔案'
+              }]}
             >
               <FileUploader
                 acceptedFileTypes={currentPage === "page2" ? "image" : "video"}

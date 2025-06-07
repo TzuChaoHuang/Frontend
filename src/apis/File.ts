@@ -15,7 +15,7 @@ export const UploadFiles = async (file: File) => {
             throw new Error('Upload failed');
         }
 
-        return response;
+        return await response.json();
     } catch (error) {
         console.error('Upload error:', error);
         throw error;
